@@ -12,87 +12,115 @@ class User{
         $this->pdo = $this->db->get_pdo();
     }
 
-    private function exit($message = '', $response = 0, $message2 = ''){
-        if($response == 2){
-            $this->ret['response'] = 1;
-            $this->ret['data'] = $message;
-            $this->ret['message'] = $message2;
-        }
-        else{
-            $this->ret['response'] = $response;
-            $this->ret['message'] = $message;
-        }
+    private function _exitS($data = '', $message = ''){
+        $this->ret['response'] = 1;
+        $this->ret['data'] = $data;
+        $this->ret['message'] = $message;
         echo json_encode($this->ret);
         exit();
     }
-
-    private function encPass($pass){
+    private function _exit($message = '', $data = ''){
+        $this->ret['response'] = 0;
+        $this->ret['data'] = $data;
+        $this->ret['message'] = $message;
+        echo json_encode($this->ret);
+        exit();
+    }
+    private function _validateInput($inputName){
+        if(!isset($_POST[ $inputName ])) $this->_exit("[{$inputName}] is Required.");   
+        if(empty($_POST[ $inputName ])) $this->_exit("[{$inputName}] is NULL");
+        return $_POST[ $inputName ];
+    }
+    private function _validateInputWithId($inputName){
+        $id = $this->_validateInput( $inputName );
+        $id = intval($id);
+        if($id === 0) $this->_exit("[{$inputName}] is 0. Not Allowed");
+        return $id;
+    }
+    private function _validateInputPattern($inputName){
+        $value = $this->_validateInput($inputName);
+        
+        switch( $inputName ){
+            case 'fname':
+                preg_match_all('/[A-Za-z0-9\.]+/', $value, $matches);
+                if($matches[0][0] != $value) $this->_exit('Invalid first name.');
+                break;
+            case 'lname':
+                preg_match_all('/[A-Za-z0-9\.]+/', $value, $matches);
+                if($matches[0][0] != $value) $this->_exit('Invalid last name.');
+                break;
+            case 'email':
+                preg_match_all('/([a-zA-Z0-9.]+)@(([a-zA-Z0-9]+)\.)+([a-zA-Z]+)/', $value, $matches);
+                if($matches[0][0] != $value) $this->_exit('Invalid email.');
+                break;
+            case 'pass':
+                if(strlen($value) < 8) $this->_exit('Invalid passowrd! Short passowrd.');
+                else{
+                    preg_match_all('/[\s \~\`\!\@\#\$\%\^\&\*\(\)\-\=\_\+\{\}\|\[\]\\\:\"\;\'\<\>\?\,\.\/]+/', $value, $matches);
+                    if(!isset($matches[0][0])) $this->_exit('Invalid passowrd! Use characters also.');
+                    else{
+                        preg_match_all('/[0-9]+/', $value, $matches);
+                        if(!isset($matches[0][0])) $this->_exit('Invalid passowrd! Use numbers also');
+                        else{
+                            preg_match_all('/[A-Z]+/', $value, $matches);
+                            if(!isset($matches[0][0])) $this->_exit('Invalid passowrd! Use upper case also.');
+                            else{
+                                preg_match_all('/[a-z]+/', $value, $matches);
+                                if(!isset($matches[0][0])) $this->_exit('Invalid passowrd! Use lower case also.');
+                            }
+                        }
+                    }
+                }
+                break;
+            case 'fname':
+                if($value != "male" && $value != "female") $this->_exit('Invalid gender.');
+                break;
+        }
+        return $value;
+    }
+    private function _isAuthorize(){
+        if($_SESSION['senderId']){
+            return intval( $_SESSION['senderId'] );
+        }
+        $this->_exit("You are unauthorised user.");
+    }
+    private function _encPass($pass){
         return md5( md5($pass, $this->salt) );
+    }
+    public function _isEmailExists($email = ''){
+        if($email == '') return false;
+        $stmt = $this->pdo->prepare('SELECT id FROM users WHERE email=?');
+        $stmt->execute([$email]);
+        
+        return $stmt->rowCount() > 0;
+    }
+    private function _login($email, $pass){
+        $pass = $this->_encPass($pass);
+        
+        $stmt = $this->pdo->prepare('SELECT id FROM users WHERE email=? AND pass=?');
+        $stmt->execute([$email, $pass]);
+        
+        if($stmt->rowCount() == 1){
+            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $_SESSION['senderId'] = $data[0]["id"];
+            $this->_exitS('', 'Successfully Login');
+        }
+        else{
+            $this->_exit('Invalid email/passord.');
+        }
     }
     
     public function addUser(){
+        $fname = $this->_validateInputPattern('fname');
+        $lname = $this->_validateInputPattern('lname');
+        $email = $this->_validateInputPattern('email');
+        $pass = $this->_validateInputPattern('pass');
+        $gender = $this->_validateInputPattern('gender');
+        $image = "/images/{$gender}.jpg";
         
-        if(!isset($_POST["fname"])) $this->exit("First name is NOT sent");
-        if(empty($_POST["fname"])) $this->exit("First name is NULL");
-
-        if(!isset($_POST["lname"])) $this->exit("Last name is NOT sent");
-        if(empty($_POST["lname"])) $this->exit("Last name is NULL");
-
-        if(!isset($_POST["email"])) $this->exit("Email is NOT sent");
-        if(empty($_POST["email"])) $this->exit("Email is NULL");
-
-        if(!isset($_POST["pass"])) $this->exit("Password is NOT sent");
-        if(empty($_POST["pass"])) $this->exit("Password is NULL");
-
-        if(!isset($_POST["gender"])) $this->exit("Gender is NOT sent");
-        if(empty($_POST["gender"])) $this->exit("Gender is NULL");
-
-
-        $fname = $_POST["fname"];
-        $lname = $_POST["lname"];
-        $email = $_POST["email"];
-        $pass = $_POST["pass"];
-        $gender = $_POST["gender"];
-        $image = '/images/' .$gender. '.jpg';
-
-
-        // First name
-        preg_match_all('/[A-Za-z0-9\.]+/', $fname, $matches);
-        if($matches[0][0] != $fname) $this->exit('Invalid first name.');
-        
-        // Last name
-        preg_match_all('/[A-Za-z0-9\.]+/', $lname, $matches);
-        if($matches[0][0] != $lname) $this->exit('Invalid last name.');
-        
-        // Email
-        preg_match_all('/([a-zA-Z0-9.]+)@(([a-zA-Z0-9]+)\.)+([a-zA-Z]+)/', $email, $matches);
-        if($matches[0][0] != $email) $this->exit('Invalid email.');
-        
-        // Password
-        if(strlen($pass) < 8) $this->exit('Invalid passowrd! Short passowrd.');
-        else{
-            preg_match_all('/[\s \~\`\!\@\#\$\%\^\&\*\(\)\-\=\_\+\{\}\|\[\]\\\:\"\;\'\<\>\?\,\.\/]+/', $pass, $matches);
-            if(!isset($matches[0][0])) $this->exit('Invalid passowrd! Use characters also.');
-            else{
-                preg_match_all('/[0-9]+/', $pass, $matches);
-                if(!isset($matches[0][0])) $this->exit('Invalid passowrd! Use numbers also');
-                else{
-                    preg_match_all('/[A-Z]+/', $pass, $matches);
-                    if(!isset($matches[0][0])) $this->exit('Invalid passowrd! Use upper case also.');
-                    else{
-                        preg_match_all('/[a-z]+/', $pass, $matches);
-                        if(!isset($matches[0][0])) $this->exit('Invalid passowrd! Use lower case also.');
-                    }
-                }
-            }
-        }
-
-        // Gender
-        if($gender != "male" && $gender != "female") $this->exit('Invalid gender.');
-
         // Email exists OR not
-        if( $this->_isUserExists($email) ) $this->exit('Email already exists.');
-
+        if( $this->_isEmailExists($email) ) $this->_exit('Email already exists.');
+        
         // Image
         if(isset($_FILES["image"]) && isset($_FILES["image"]["error"])){
             if($_FILES["image"]["error"] == 0 && $_FILES["image"]["size"] <= 10*1024*1024){
@@ -100,8 +128,7 @@ class User{
                     
                     $t = microtime();
                     $a = explode(" ", $t);
-                    // echo $a[1] . "_" . substr($a[0], 2);
-                    // $nn =  md5();
+                    
                     $new = $a[1] . "_" . substr($a[0], 2) . "_" . $_FILES["image"]["name"];
                     $new2 = md5($new);
                     $new = "./images/uploads/" . $new;
@@ -113,9 +140,8 @@ class User{
                 }
             }
         }
-
         
-        $pass = $this->encPass($pass);
+        $passEncrypted = $this->_encPass($pass);
         
         $last_active = time();
         $active = true;
@@ -124,86 +150,128 @@ class User{
         $stmt->bindParam('fname', $fname, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('lname', $lname, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('email', $email, PDO::PARAM_STR_CHAR);
-        $stmt->bindParam('pass', $pass, PDO::PARAM_STR_CHAR);
+        $stmt->bindParam('pass', $passEncrypted, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('gender', $gender, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('image', $image, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('active', $active, PDO::PARAM_BOOL);
         $stmt->bindParam('last_active', $last_active, PDO::PARAM_INT);
-
         $result = $stmt->execute();
-        if($result) $this->exit('Account sccuessfully created.', 1);
-        else $this->exit('Insertion error.');
+        
+        if($result){
+            if(isset($_POST['login']) && !empty($_POST['login']) && ($_POST['login'] === true || $_POST['login'] === 'true') )
+                $this->_login($email, $pass);
+            else
+                $this->_exitS('', 'Account sccuessfully created.');
+        }
+        else $this->_exit('Insertion error.');
     }
-
     public function loginUser(){
+        $email = $this->_validateInput('email');
+        $pass = $this->_validateInput('pass');
+        
+        $this->_login($email, $pass);
+    }
+    public function logout(){
+        if(isset($_SESSION['senderId']))
+            unset( $_SESSION['senderId'] );
+        $this->_exitS( "Logged out Successfully.");
+    }
+    public function syncChat(){
+        $senderId = $this->_isAuthorize();
+        $receiverId = $this->_validateInputWithId('receiverId');
+        $receiverLastMsgId = $this->_validateInputWithId('receiverLastMsgId');
 
-        if(!isset($_POST["email"])) $this->exit("Email is NOT sent");
-        if(empty($_POST["email"])) $this->exit("Email is NULL");
+        // $user = intval( $_POST['userId'] );
+        // $chatWith = intval( $_POST['chat_userId'] );
+        // $loadedMsgId = intval( $_POST["loaded_msg_id"] );
 
-        if(!isset($_POST["pass"])) $this->exit("Password is NOT sent");
-        if(empty($_POST["pass"])) $this->exit("Password is NULL");
+        $stmt = $this->pdo->prepare('
+        SELECT id i, message m, seen se, time t,
+        CASE
+            WHEN sender = :senderId THEN 1
+            ELSE 0
+        END AS s
+        FROM messages
+        WHERE ( 
+            (sender=:senderId AND receiver=:receiverId) OR
+            (sender=:receiverId AND receiver=:senderId) ) AND
+            id>:receiverLastMsgId
+        ORDER BY time');
+        // WHERE (sender=? AND receiver=?) OR (receiver=? AND sender=?) AND id>?
         
-        $email = $_POST["email"];
-        $pass = $this->encPass($_POST["pass"]);
+        $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+        $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
+        $stmt->bindParam('receiverLastMsgId', $receiverLastMsgId, PDO::PARAM_INT);
         
-        $stmt = $this->pdo->prepare('SELECT id FROM users WHERE email=? AND pass=?');
-        $stmt->execute([$email, $pass]);
-        
-        if($stmt->rowCount() == 1){
-            $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $_SESSION['user_id'] = $data[0]["id"];
-            $this->exit('Successfully Login', 1);
+        // $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active FROM users WHERE active=1');
+
+        if( $stmt->execute() ){
+            $this->_exitS( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
         }
-        else{
-            $this->exit('Invalid email/passord.');
-        }
+        else $this->_exit('Select Query error.');
     }
 
-    public function _isUserExists($email = ''){
-        if($email == '') return false;
-        $stmt = $this->pdo->prepare('SELECT id FROM users WHERE email=?');
-        $stmt->execute([$email]);
-        
-        return $stmt->rowCount() > 0;
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+    
 
     public function syncState(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
+        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
+        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
+        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
+        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
 
-        $userid = $_POST['user_id'];
+        $userid = $_POST['userId'];
 
         $stmt = $this->pdo->prepare('UPDATE users SET active=?, last_active=? WHERE id=?');
         $t = time();
-        $result = $stmt->execute([true, $t, $_POST['user_id']]);
+        $result = $stmt->execute([true, $t, $_POST['userId']]);
 
         $t = $t - 2;
 
         $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active, last_active FROM users WHERE id != ?');
         if( $stmt->execute( [$userid] ) ){
-            $this->exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
+            $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
         }
-        else $this->exit('Select Query error.');
+        else $this->_exit('Select Query error.');
 
         // print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
-        // if($result) $this->exit('Account sccuessfully created.', 1);
-        // else $this->exit('Insertion error.');
+        // if($result) $this->_exit('Account sccuessfully created.', 1);
+        // else $this->_exit('Insertion error.');
     }
 
     public function showChat(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
+        if(!isset($_POST['senderId'])) $this->_exit("Sender ID is NOT sent");
+        else if(empty($_POST['userId'])) $this->_exit("Sender ID is NULL");
+        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
+        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
 
-        if(!isset($_POST['chat_user_id'])) $this->exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_user_id'])) $this->exit("Chat User ID is NULL");
-        else if($_POST['chat_user_id'] == 0) $this->exit("Chat User ID is 0. Not Allowed");
+        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
+        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
+        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
 
-        $user = $_POST['user_id'];
-        $chatWith = $_POST['chat_user_id'];
+        $user = $_POST['userId'];
+        $chatWith = $_POST['chat_userId'];
 
         $stmt = $this->pdo->prepare('
         SELECT id i, message m, seen se, time t,
@@ -219,21 +287,21 @@ class User{
         // $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active FROM users WHERE active=1');
 
         if( $stmt->execute( [$user, $user, $chatWith, $user, $chatWith] ) ){
-            $this->exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
+            $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
         }
-        else $this->exit('Select Query error.');
+        else $this->_exit('Select Query error.');
     }
 
     public function messagesSeen(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
+        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
+        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
+        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
+        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
 
 
-        if(!isset($_POST["msg_ids"])) $this->exit("Message IDs are NOT sent");
-        else if(empty($_POST["msg_ids"])) $this->exit("msg_ids is NULL");
-        // else if($_POST["msg_ids"] == 0) $this->exit("User ID is 0. Not Allowed");
+        if(!isset($_POST["msg_ids"])) $this->_exit("Message IDs are NOT sent");
+        else if(empty($_POST["msg_ids"])) $this->_exit("msg_ids is NULL");
+        // else if($_POST["msg_ids"] == 0) $this->_exit("User ID is 0. Not Allowed");
         $ids = json_decode($_POST["msg_ids"]);
         
         $stmt = $this->pdo->prepare('
@@ -248,69 +316,30 @@ class User{
         }
         
         if($updated){
-            $this->exit('Message seen status updated.', 1);
+            $this->_exit('Message seen status updated.', 1);
         }
         else{
-            $this->exit('Update Query error.');
+            $this->_exit('Update Query error.');
         }
     }
 
-    public function syncChat(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
-
-        if(!isset($_POST['chat_user_id'])) $this->exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_user_id'])) $this->exit("Chat User ID is NULL");
-        else if($_POST['chat_user_id'] == 0) $this->exit("Chat User ID is 0. Not Allowed");
-        
-        if(!isset($_POST["loaded_msg_id"])) $this->exit("Last loaded msg ID is NOT sent");
-        else if(empty($_POST["loaded_msg_id"])) $this->exit("Last loaded msg ID is NULL");
-        else if($_POST["loaded_msg_id"] == 0) $this->exit("Last loaded msg ID is 0. Not Allowed");
-
-        $user = intval( $_POST['user_id'] );
-        $chatWith = intval( $_POST['chat_user_id'] );
-        $loadedMsgId = intval( $_POST["loaded_msg_id"] );
-
-        $stmt = $this->pdo->prepare('
-        SELECT id i, message m, seen se, time t,
-        CASE
-            WHEN sender = :user THEN 1
-            ELSE 0
-        END AS s
-        FROM messages
-        WHERE ( (sender=:user AND receiver=:chatWith) OR (sender=:chatWith AND receiver=:user) ) AND id>:loadedMsgId
-        ORDER BY time');
-        // WHERE (sender=? AND receiver=?) OR (receiver=? AND sender=?) AND id>?
-        
-        $stmt->bindParam('user', $user, PDO::PARAM_INT);
-        $stmt->bindParam('chatWith', $chatWith, PDO::PARAM_INT);
-        $stmt->bindParam('loadedMsgId', $loadedMsgId, PDO::PARAM_INT);
-        
-        // $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active FROM users WHERE active=1');
-
-        if( $stmt->execute() ){
-            $this->exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
-        }
-        else $this->exit('Select Query error.');
-    }
+    
 
     public function sendMessage(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
+        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
+        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
+        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
+        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
 
-        if(!isset($_POST['chat_user_id'])) $this->exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_user_id'])) $this->exit("Chat User ID is NULL");
-        else if($_POST['chat_user_id'] == 0) $this->exit("Chat User ID is 0. Not Allowed");
+        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
+        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
+        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
         
-        if(!isset($_POST["message"])) $this->exit("Message is NOT sent");
-        else if(empty($_POST["message"])) $this->exit("Message is NULL");
+        if(!isset($_POST["message"])) $this->_exit("Message is NOT sent");
+        else if(empty($_POST["message"])) $this->_exit("Message is NULL");
 
-        $sender = $_POST['user_id'];
-        $receiver = $_POST['chat_user_id'];
+        $sender = $_POST['userId'];
+        $receiver = $_POST['chat_userId'];
         $message = $_POST["message"];
         $time = time();
         
@@ -332,27 +361,27 @@ class User{
             ORDER BY time DESC LIMIT 1');
 
             if( $stmt->execute( [$sender, $sender, $receiver, $time, $message] ) ){
-                $this->exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
+                $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
             }
             else{
-                $this->exit('Select Query error.');
+                $this->_exit('Select Query error.');
             }
         }
-        else $this->exit('Insert Query error.');
+        else $this->_exit('Insert Query error.');
     }
 
     public function fixUnseenError(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
+        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
+        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
+        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
+        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
 
-        if(!isset($_POST['chat_user_id'])) $this->exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_user_id'])) $this->exit("Chat User ID is NULL");
-        else if($_POST['chat_user_id'] == 0) $this->exit("Chat User ID is 0. Not Allowed");
+        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
+        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
+        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
 
-        $sender = intval($_POST['user_id']);
-        $receiver = intval($_POST['chat_user_id']);
+        $sender = intval($_POST['userId']);
+        $receiver = intval($_POST['chat_userId']);
 
         $ret_ids = array();
 
@@ -369,7 +398,7 @@ class User{
 
                 
             // print_r($ids);
-            // exit();
+            // _exit();
             $stmt = $this->pdo->prepare('
                 SELECT id
                 FROM messages
@@ -395,30 +424,30 @@ class User{
                         }
                     }
                 }
-                $this->exit( $ret_ids , 2);
+                $this->_exit( $ret_ids , 2);
             }
-            $this->exit( $ret_ids , 2);
+            $this->_exit( $ret_ids , 2);
         }
-        $this->exit( $ret_ids , 2);
+        $this->_exit( $ret_ids , 2);
     }
 
     public function syncUnseenMessage(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
+        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
+        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
+        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
+        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
 
-        if(!isset($_POST['chat_user_id'])) $this->exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_user_id'])) $this->exit("Chat User ID is NULL");
-        else if($_POST['chat_user_id'] == 0) $this->exit("Chat User ID is 0. Not Allowed");
+        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
+        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
+        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
 
-        if(!isset($_POST["msg_ids"])) $this->exit("Message IDs is NOT sent");
-        else if(empty($_POST["msg_ids"])) $this->exit("Message IDs is NULL");
+        if(!isset($_POST["msg_ids"])) $this->_exit("Message IDs is NOT sent");
+        else if(empty($_POST["msg_ids"])) $this->_exit("Message IDs is NULL");
         $msg_ids = json_decode( $_POST['msg_ids'] );
-        if( !is_array($msg_ids) ) $this->exit("Message ids must be an Array.");
+        if( !is_array($msg_ids) ) $this->_exit("Message ids must be an Array.");
 
-        $sender = intval($_POST['user_id']);
-        $receiver = intval($_POST['chat_user_id']);
+        $sender = intval($_POST['userId']);
+        $receiver = intval($_POST['chat_userId']);
 
         $ret_ids = array();
 
@@ -436,22 +465,10 @@ class User{
             }
         }
 
-        $this->exit( $ret_ids , 2);
+        $this->_exit( $ret_ids , 2);
     }
 
-    public function logout(){
-        if(!isset($_POST['user_id'])) $this->exit("User ID is NOT sent");
-        else if(empty($_POST['user_id'])) $this->exit("User ID is NULL");
-        else if($_POST['user_id'] == 0) $this->exit("User ID is 0. Not Allowed");
-        else if($_SESSION['user_id'] != intval($_POST['user_id']) ) $this->exit("You are unauthorised user.");
-
-        $sender = intval($_POST['user_id']);
-        
-        if( isset($_SESSION['user_id']) )
-        unset( $_SESSION['user_id'] );
-        
-        $this->exit( "Logged out Successfully." , 1);
-    }
+    
 }
 
 
