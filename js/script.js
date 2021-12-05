@@ -408,7 +408,8 @@ class App{
                 }
             }, 100);
         },
-        sendMessage: () => {
+        sendMessage: (e) => {
+            e.preventDefault()
             let message = this.re.messageInput.value.trim();
             this.re.messageInput.value = '';
             this.re.messageInput.focus();
@@ -849,6 +850,7 @@ class App{
             this.re.settings.classList.remove('opened');
             let reply = confirm("Logout! Are you sure?");
             if(reply){
+                PB().show('Logging Out.')
                 let url = "api.php";
                 let data = new FormData();
                 data.append("apiAction", "logout");
@@ -859,10 +861,14 @@ class App{
                 })
                 .then(response => response.json())
                 .then(data => {
+                    PB().remove()
                     if(data.response){
                         window.location.reload();
                     }
-                });
+                })
+                .catch(e => {
+                    PB().remove()
+                })
             }
         }
     }

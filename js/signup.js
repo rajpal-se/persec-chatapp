@@ -178,6 +178,8 @@ class Signup{
             this.fun.message(error);
             if(error !== null) return;
 
+            PB().show('Creating new account.')
+
             let url = "api.php";
             let data = new FormData();
             data.append("apiAction", "addUser");
@@ -194,6 +196,7 @@ class Signup{
             })
             .then(response => response.json())
             .then(data => {
+                PB().remove()
                 if(data.response){
                     this.fun.message(data.message, true);
                     this.re.form.reset();
@@ -202,7 +205,13 @@ class Signup{
                         window.location.href = "./login.php";
                     }, 2000);
                 }
-            });
+                else{
+                    this.fun.message(data.message);
+                }
+            })
+            .catch(e => {
+                PB().remove()
+            })
         },
         showPass: e => {
             if(this.re.pass.type === "password"){

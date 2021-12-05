@@ -74,6 +74,7 @@ include_once "header.php";
 
 
     <script src="./js/bootstrap/bootstrap.bundle.min.js"></script>
+    <script src="./js/pageBlocker.js"></script>
     <script src="js/signup.js"></script>
 </body>
 </html>

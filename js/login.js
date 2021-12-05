@@ -1,6 +1,6 @@
 class Login{
-    email = null;
-    pass = null;
+    email = '';
+    pass = '';
     constructor(){
         this.setRefs();
         this.setEvents();
@@ -18,11 +18,30 @@ class Login{
     fun = {
         login: (e) =>{
             e.preventDefault();
+
+            if(typeof this.email !== 'string' || (typeof this.email === 'string' && this.email.length === 0)){
+                this.fun.message('Email is required.');
+                let t = this;
+                setTimeout(function(){
+                    t.fun.message();
+                }, 5000);
+                return
+            }
+            if(typeof this.pass !== 'string' || (typeof this.pass === 'string' && this.pass.length === 0)){
+                this.fun.message('Password is required.');
+                let t = this;
+                setTimeout(function(){
+                    t.fun.message();
+                }, 5000);
+                return
+            }
             let url = "api.php";
             let data = new FormData();
             data.append("apiAction", "loginUser");
             data.append("email", this.email);
             data.append("pass", this.pass);
+
+            PB().show('Logging in.')
             
             fetch(url, {
                 method: 'POST',
@@ -30,7 +49,11 @@ class Login{
             })
             .then(response => response.json())
             .then(data => {
-                console.log(data);
+                PB().remove()
+                this.re.email.value = ''
+                this.re.pass.value = ''
+                
+                // console.log(data);
                 if(data.response){
                     this.fun.message(data.message, true);
                     setTimeout(function(){
@@ -44,6 +67,9 @@ class Login{
                         t.fun.message();
                     }, 5000);
                 }
+            })
+            .catch(e => {
+                PB().remove()
             });
         },
         message: (message = null, success = false) => {

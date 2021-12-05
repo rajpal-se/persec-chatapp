@@ -88,7 +88,10 @@ class User{
         }
 
         // Gender
-        if($gender != "male" && $gender != "female") $this->exit('Invalid gender.'); 
+        if($gender != "male" && $gender != "female") $this->exit('Invalid gender.');
+
+        // Email exists OR not
+        if( $this->_isUserExists($email) ) $this->exit('Email already exists.');
 
         // Image
         if(isset($_FILES["image"]) && isset($_FILES["image"]["error"])){
@@ -154,6 +157,14 @@ class User{
         else{
             $this->exit('Invalid email/passord.');
         }
+    }
+
+    public function _isUserExists($email = ''){
+        if($email == '') return false;
+        $stmt = $this->pdo->prepare('SELECT id FROM users WHERE email=?');
+        $stmt->execute([$email]);
+        
+        return $stmt->rowCount() > 0;
     }
 
     public function syncState(){
@@ -442,3 +453,7 @@ class User{
         $this->exit( "Logged out Successfully." , 1);
     }
 }
+
+
+// To generate password.
+// echo md5( md5('Admin@123', "[WelCome.to@home!]Just*Have&Fun12[.]") );

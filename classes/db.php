@@ -13,6 +13,8 @@ class DB{
     
     function __construct(){
         if($this->dev){
+            $this->user = "chatapp";
+            $this->pass = "ChatApp#2021";
             /* Edit Username & Password
             $this->user = "************";
 			$this->pass = "************";

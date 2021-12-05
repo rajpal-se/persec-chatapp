@@ -80,7 +80,10 @@
         </ul>
       </div>
     </div>
-    <div id="chat-con">
+    <div id="chat-con" class="selectUser">
+      <div class="block">
+        hi
+      </div>
       <div class="chat-message-con">
         <ul id="print-chat">
           <!--           
@@ -110,6 +113,7 @@
   </div>
 
   <script src="./js/bootstrap/bootstrap.bundle.min.js"></script>
+  <script src="./js/pageBlocker.js"></script>
   <script src="js/script.js"></script>
 
 </body>
