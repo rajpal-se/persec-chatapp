@@ -474,6 +474,26 @@ body.chatapp.texture{
 	align-content: stretch;
 }
 
+#chat-con .blocker{
+    display: none;
+}
+#chat-con.selectUser .blocker{
+    background-color: #e0e0e0;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    height: 100%;
+    width: 100%;
+    /* z-index: 2; */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+#chat-con.selectUser .blocker p{
+    font-size: 18px;
+    font-weight: 500;
+    user-select: none;
+}
 #chat-con .chat-message-con{
 	margin-top: auto;
 	overflow-y: auto;

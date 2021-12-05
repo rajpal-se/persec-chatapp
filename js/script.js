@@ -22,8 +22,8 @@ class App{
     constructor(){
         this.setRefs();
         this.userid = parseInt(this.re.userlist.dataset.userid);
-        this.re.userlist.innerHTML = '';
-        this.re.printchat.innerHTML = '';
+        this.re.userlist.innerHTML = null;
+        this.re.printchat.innerHTML = null;
         
         this.setEvents();
         this.fun.syncState();
@@ -41,6 +41,7 @@ class App{
         this.re = {};
         this.re.userlist = document.querySelector("#userlist");
         this.re.printchat = document.querySelector("#print-chat");
+        this.re.chatCon = document.querySelector("#chat-con");
         this.re.messageInput = document.querySelector("#chat-con .message-input");
         this.re.sendBtn = document.querySelector("#chat-con span.send");
         this.re.menu = document.querySelector("#menuToggle");
@@ -501,6 +502,7 @@ class App{
         },
         selectChatUser: () => {
             if(this.chatUserID !== 0){
+                this.re.chatCon.classList.remove('selectUser')
 
                 this.fun.resetPrintChat();
                 

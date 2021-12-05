@@ -81,9 +81,6 @@
       </div>
     </div>
     <div id="chat-con" class="selectUser">
-      <div class="block">
-        hi
-      </div>
       <div class="chat-message-con">
         <ul id="print-chat">
           <!--           
@@ -105,6 +102,9 @@
             </svg>
           </span>
         </div>
+      </div>
+      <div class="blocker">
+        <p>Select a user from list to chat with.</p>
       </div>
     </div>
     <!-- <div id="info-con">
