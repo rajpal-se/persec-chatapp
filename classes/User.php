@@ -6,6 +6,7 @@ class User{
     private $pdo = null;
     private $db = null;
     private $salt = "[WelCome.to@home!]Just*Have&Fun12[.]";
+    private $lastActiveGap = 1500; // milliseconds
     
     function __construct(){
         $this->db = new DB();
@@ -16,6 +17,7 @@ class User{
         $this->ret['response'] = 1;
         $this->ret['data'] = $data;
         $this->ret['message'] = $message;
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($this->ret);
         exit();
     }
@@ -23,18 +25,19 @@ class User{
         $this->ret['response'] = 0;
         $this->ret['data'] = $data;
         $this->ret['message'] = $message;
+        header('Content-Type: application/json; charset=utf-8');
         echo json_encode($this->ret);
         exit();
     }
     private function _validateInput($inputName){
         if(!isset($_POST[ $inputName ])) $this->_exit("[{$inputName}] is Required.");   
-        if(empty($_POST[ $inputName ])) $this->_exit("[{$inputName}] is NULL");
+        if($_POST[ $inputName ] === '') $this->_exit("[{$inputName}] is NULL");
         return $_POST[ $inputName ];
     }
-    private function _validateInputWithId($inputName){
+    private function _validateInputWithId($inputName, $zeroAllowed = false){
         $id = $this->_validateInput( $inputName );
         $id = intval($id);
-        if($id === 0) $this->_exit("[{$inputName}] is 0. Not Allowed");
+        if(!$zeroAllowed && $id === 0) $this->_exit("[{$inputName}] is 0. Not Allowed");
         return $id;
     }
     private function _validateInputPattern($inputName){
@@ -79,7 +82,7 @@ class User{
         return $value;
     }
     private function _isAuthorize(){
-        if($_SESSION['senderId']){
+        if(isset($_SESSION['senderId']) && $_SESSION['senderId']){
             return intval( $_SESSION['senderId'] );
         }
         $this->_exit("You are unauthorised user.");
@@ -178,37 +181,78 @@ class User{
     }
     public function syncChat(){
         $senderId = $this->_isAuthorize();
-        $receiverId = $this->_validateInputWithId('receiverId');
-        $receiverLastMsgId = $this->_validateInputWithId('receiverLastMsgId');
+        $receiverId = $this->_validateInputWithId('receiverId', true);
+        $receiverLastMsgId = $this->_validateInputWithId('receiverLastMsgId', true);
 
-        // $user = intval( $_POST['userId'] );
-        // $chatWith = intval( $_POST['chat_userId'] );
-        // $loadedMsgId = intval( $_POST["loaded_msg_id"] );
+        // exit(var_dump($receiverId));
 
+        $newChat = ( $receiverId !== 0) ? $this->_syncChat_getNewReceivedChat($senderId, $receiverId, $receiverLastMsgId) : false;
+        $this->_syncChat_updateActiveOthers();
+        $this->_syncChat_updateActiveSelf($senderId);
+        $users = $this->_syncChat_getUsersList($senderId);
+
+        $this->_exitS(['chat' => $newChat, 'users' => $users]);
+    }
+    private function _syncChat_getNewReceivedChat($senderId, $receiverId, $receiverLastMsgId){
         $stmt = $this->pdo->prepare('
-        SELECT id i, message m, seen se, time t,
-        CASE
-            WHEN sender = :senderId THEN 1
-            ELSE 0
-        END AS s
-        FROM messages
-        WHERE ( 
-            (sender=:senderId AND receiver=:receiverId) OR
-            (sender=:receiverId AND receiver=:senderId) ) AND
-            id>:receiverLastMsgId
-        ORDER BY time');
-        // WHERE (sender=? AND receiver=?) OR (receiver=? AND sender=?) AND id>?
+            SELECT id i, message m, seen se, time t,
+            CASE
+                WHEN sender = :senderId THEN 1
+                ELSE 0
+            END AS s
+            FROM messages
+            WHERE (
+                (sender=:receiverId AND receiver=:senderId) ) AND
+                id>:receiverLastMsgId
+            ORDER BY time
+        ');
         
         $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
         $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
         $stmt->bindParam('receiverLastMsgId', $receiverLastMsgId, PDO::PARAM_INT);
         
-        // $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active FROM users WHERE active=1');
-
         if( $stmt->execute() ){
-            $this->_exitS( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
-        else $this->_exit('Select Query error.');
+        else $this->_exit('Select Query error. [_syncChat A]');
+    }
+    private function _syncChat_updateActiveOthers(){
+        $last_active = (microtime(true) * 1000) - $this->lastActiveGap;
+        $stmt = $this->pdo->prepare('UPDATE users SET active=? WHERE last_active<?');
+        $result = $stmt->execute([false, $last_active]);
+    }
+    private function _syncChat_updateActiveSelf($senderId){
+        $stmt = $this->pdo->prepare('UPDATE users SET active=?, last_active=? WHERE id=?');
+        $t = intval(microtime(true) * 1000);
+        $stmt->execute([true, $t, $senderId]);
+    }
+    private function _syncChat_getUsersList($senderId){
+        $stmt = $this->pdo->prepare('
+            SELECT users.* FROM (
+                SELECT CASE
+                    WHEN A.sender = :senderId THEN A.receiver
+                    WHEN A.receiver = :senderId THEN A.sender
+                END AS id, MAX(time) as time
+                FROM (
+                    SELECT sender, receiver, MAX(time) as time
+                    FROM messages
+                    WHERE receiver=:senderId OR sender=:senderId
+                    GROUP BY sender, receiver
+                ) A
+                WHERE A.sender=:senderId OR A.receiver=:senderId
+                GROUP BY id
+                ORDER BY time DESC
+            ) AS connectedUsers
+            RIGHT JOIN (SELECT id, fname, lname, gender, image, active, last_active FROM users WHERE id != :senderId) users
+            ON users.id = connectedUsers.id
+            ORDER BY connectedUsers.id DESC, users.last_active DESC
+        ');
+
+        $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+        if( $stmt->execute() ){
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+        else $this->_exit('Select Query error. [_syncChat B]');
     }
 
 

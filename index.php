@@ -1,6 +1,6 @@
 <?php 
   session_start();
-  if(!isset($_SESSION['user_id'])){
+  if(!isset($_SESSION['senderId'])){
     header("location: login.php");
     exit;
   }
@@ -39,7 +39,7 @@
         </div>
       </div>
       <div id="userlist-con">
-        <ul id="userlist" data-userid="<?php echo $_SESSION['user_id']; ?>">
+        <ul id="userlist" data-userid="<?php echo $_SESSION['senderId']; ?>">
           <!--         
             <li data-userid="0" data-userlastactive="1619928647">
               <div class="con1"><img class="image" src="./images/male.jpg"/></div>

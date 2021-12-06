@@ -768,7 +768,7 @@ Menu
 Mobile UI
 */
 body.mobile #user-con{
-	top: 60px;
+	/* top: 60px; */
 	position: absolute;
 	border-left: 1px solid gray;
 	background-color: white;
@@ -784,6 +784,7 @@ body.mobile #userlist li{
 }
 body.mobile.menu-opened #user-con{
 	transform: translateY(0%);
+    top: 60px;
 }
 
 /* 
