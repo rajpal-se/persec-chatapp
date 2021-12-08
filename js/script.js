@@ -32,6 +32,8 @@ class App{
 		
         this.fun.app.windowResize()
 
+        this.fun.sound.beep()
+
 		this.fun.chat.syncChat()
         this.syncChat.intervalId = setInterval(() => {
             this.fun.chat.syncChat()
@@ -58,7 +60,6 @@ class App{
 		this.re.statusCon = document.querySelector("#status-con")
 		this.re.settings = document.querySelector("#status-con .setting-con")
 		this.re.logoutBtn = document.querySelector("#logoutBtn")
-		// this.re.audio = document.querySelector("#audio")
 	}
 	fun = {
 		utils: (() => {
@@ -186,6 +187,7 @@ class App{
             obj.sendMessageHandler = () => {
                 const textarea = this.re.messageInput
                 const message = textarea.value
+                textarea.rows = 1
                 if(message.length > 0 && this.receiverId !== 0){
                     textarea.value = ''
                     const formData = {
@@ -417,6 +419,10 @@ class App{
                 // console.log(this.re.userlist)
                 uOrder.map(key => {
                     this.re.userlist.append(u[key].dom.root)
+                    if(parseInt(u[key].data.isReceived) === 0 && parseInt(u[key].data.seen) === 0){
+                        // console.log(u[key].data)
+                        this.fun.sound.beep( parseInt(u[key].data.message_id) )
+                    }
                 })
             }
 			obj.createUserListNode = (user) => {
@@ -616,14 +622,25 @@ class App{
                 if(!e.shiftKey && e.which === 13) return
 
                 const textarea = this.re.messageInput
-                const scrollHeight = textarea.scrollHeight
-                let rows = 1
-                if(scrollHeight === 30) rows = 1
-                else if(scrollHeight === 50) rows = 2
-                else if(scrollHeight === 70) rows = 3
-                else rows = 4
                 
-                textarea.setAttribute('rows', rows)
+                const lines = textarea.value.split('\n')
+                if(lines.length <= 4){
+                    textarea.rows = lines.length
+                    
+                    // Calculate again
+                    const scrollHeight = textarea.scrollHeight
+                    let rows = 1
+                    if(scrollHeight === 30) rows = 1
+                    else if(scrollHeight === 50) rows = 2
+                    else if(scrollHeight === 70) rows = 3
+                    else rows = 4
+                    if(rows > lines.length){
+                        textarea.rows = rows
+                    }
+                }
+                else{
+                    textarea.rows = 4
+                }
             }
             obj.messageInputKeyDownHandler = (e) => {
                 if(!e.shiftKey && e.which === 13){
@@ -636,21 +653,27 @@ class App{
 			return obj
         })(),
         sound: (() => {
-            // window.addEventListener('load', (event) => {
-            //     const audio = new Audio()
-            //     audio.src = '/assets/beep.mp3'
-            //     audio.play()
-            // })
-            /* 
-            <audio id="audio">
-                <source src="/assets/beep.mp3" type="audio/mpeg">
-            </audio>
-            */
-            // const obj = {}
-            // obj.beep = () => {
-            //     this.re.audio.play()
-            // }
-            // return obj
+            const audio = new Audio('/assets/sound.mp3')
+            // audio.muted = true
+            const obj = {audio}
+            obj.beepedForMsgIds = []
+
+
+            obj.beep = (messageID) => {
+                if(typeof messageID === typeof 0 && messageID !== NaN && obj.beepedForMsgIds.indexOf(messageID) < 0){
+                    obj.beepedForMsgIds.push(messageID)
+                    console.log('messageID: ' + messageID)
+                    audio.play()
+                    .then(_ => {})
+                    .catch(e => {
+                        // console.log(e)
+                    })
+                }
+                // else{
+                //     console.log('here')
+                // }
+            }
+            return obj
         })()
     }
 		
