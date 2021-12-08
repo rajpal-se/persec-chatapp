@@ -1,6 +1,6 @@
 <?php
 class DB{
-    private $dev = false;
+    private $dev = true;
     private $host = "localhost";
     private $user = "root";
     private $pass = "";
@@ -13,9 +13,8 @@ class DB{
     
     function __construct(){
         if($this->dev){
-            $this->user = "chatapp";
-            $this->pass = "ChatApp#2021";
             /* Edit Username & Password
+            // Update [$dev = true] to [$dev = false]
             $this->user = "************";
 			$this->pass = "************";
 			*/
