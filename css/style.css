@@ -1,9 +1,18 @@
 *{
 	box-sizing: border-box;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji";
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
 }
 html, body{
 	min-height: 100vh;
 	position: relative;
+    margin: 0px;
+    padding: 0px;
 }
 body.texture{
 	background-image: url("/images/app-texture-1.jpg");
