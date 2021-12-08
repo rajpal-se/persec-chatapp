@@ -29,13 +29,18 @@ class User{
         echo json_encode($this->ret);
         exit();
     }
-    private function _validateInput($inputName){
-        if(!isset($_POST[ $inputName ])) $this->_exit("[{$inputName}] is Required.");   
-        if($_POST[ $inputName ] === '') $this->_exit("[{$inputName}] is NULL");
-        return $_POST[ $inputName ];
+    private function _validateInput($inputName, $optional = false, $defaultValue = '', $emptyStrAllowed = false){
+        if( !isset($_POST[ $inputName ]) ){
+            if(!$optional) $this->_exit("[{$inputName}] is Required.");
+            return $defaultValue;
+        }
+        else{
+            if(!$emptyStrAllowed && $_POST[ $inputName ] === '') $this->_exit("[{$inputName}] is NULL");
+            return $_POST[ $inputName ];
+        }
     }
-    private function _validateInputWithId($inputName, $zeroAllowed = false){
-        $id = $this->_validateInput( $inputName );
+    private function _validateInputWithId($inputName, $zeroAllowed = false, $optional = false, $defaultValue = 0){
+        $id = $this->_validateInput( $inputName, $optional, $defaultValue );
         $id = intval($id);
         if(!$zeroAllowed && $id === 0) $this->_exit("[{$inputName}] is 0. Not Allowed");
         return $id;
@@ -180,20 +185,38 @@ class User{
         $this->_exitS( "Logged out Successfully.");
     }
     public function syncChat(){
+        // $this->_exit($_POST);
         $senderId = $this->_isAuthorize();
         $receiverId = $this->_validateInputWithId('receiverId', true);
-        $receiverLastMsgId = $this->_validateInputWithId('receiverLastMsgId', true);
+        $lastLoadedMsgId = $this->_validateInputWithId('lastLoadedMsgId', true, true);
+        $markMsgAsSeen = $this->_validateInput('markMsgAsSeen', true);
 
+
+        $lastSeenMsgId = ($receiverId !== 0) ? $this->_syncChat_lastSeenMsgId($senderId, $receiverId) : 0;        
+        
         // exit(var_dump($receiverId));
-
-        $newChat = ( $receiverId !== 0) ? $this->_syncChat_getNewReceivedChat($senderId, $receiverId, $receiverLastMsgId) : false;
+        if($receiverId !== 0 && !empty($markMsgAsSeen)){
+            $this->_syncChat_markMsgAsSeen($receiverId, $senderId, explode(',', $markMsgAsSeen) );
+        }
+        $newChat = ( $receiverId !== 0 && $lastLoadedMsgId > 0) ? $this->_syncChat_getNewReceivedChat($senderId, $receiverId, $lastLoadedMsgId) : false;
         $this->_syncChat_updateActiveOthers();
         $this->_syncChat_updateActiveSelf($senderId);
         $users = $this->_syncChat_getUsersList($senderId);
 
-        $this->_exitS(['chat' => $newChat, 'users' => $users]);
+
+        $this->_exitS(['chat' => $newChat, 'users' => $users, 'lastSeenMsgId' => $lastSeenMsgId]);
     }
-    private function _syncChat_getNewReceivedChat($senderId, $receiverId, $receiverLastMsgId){
+    private function _syncChat_markMsgAsSeen($senderId, $receiverId, $markMsgAsSeen){
+        $stmt = $this->pdo->prepare('
+            UPDATE messages
+            SET seen=1
+            WHERE id=? AND sender=? AND receiver=?
+        ');
+        foreach($markMsgAsSeen as $id){
+            $stmt->execute( [intval($id), $senderId, $receiverId] );
+        }
+    }
+    private function _syncChat_getNewReceivedChat($senderId, $receiverId, $lastLoadedMsgId){
         $stmt = $this->pdo->prepare('
             SELECT id i, message m, seen se, time t,
             CASE
@@ -201,15 +224,16 @@ class User{
                 ELSE 0
             END AS s
             FROM messages
-            WHERE (
-                (sender=:receiverId AND receiver=:senderId) ) AND
-                id>:receiverLastMsgId
-            ORDER BY time
+            WHERE id>:lastLoadedMsgId AND (
+                (sender=:receiverId AND receiver=:senderId) OR
+                (receiver=:receiverId AND sender=:senderId)
+            )
+            ORDER BY id DESC
         ');
         
         $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
         $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
-        $stmt->bindParam('receiverLastMsgId', $receiverLastMsgId, PDO::PARAM_INT);
+        $stmt->bindParam('lastLoadedMsgId', $lastLoadedMsgId, PDO::PARAM_INT);
         
         if( $stmt->execute() ){
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -228,24 +252,41 @@ class User{
     }
     private function _syncChat_getUsersList($senderId){
         $stmt = $this->pdo->prepare('
-            SELECT users.* FROM (
-                SELECT CASE
-                    WHEN A.sender = :senderId THEN A.receiver
-                    WHEN A.receiver = :senderId THEN A.sender
-                END AS id, MAX(time) as time
-                FROM (
-                    SELECT sender, receiver, MAX(time) as time
-                    FROM messages
-                    WHERE receiver=:senderId OR sender=:senderId
-                    GROUP BY sender, receiver
-                ) A
-                WHERE A.sender=:senderId OR A.receiver=:senderId
-                GROUP BY id
-                ORDER BY time DESC
+            SELECT users.id AS user_id, users.fname, users.lname, users.email, users.gender, users.image, users.active, users.last_active, connectedUsers.message_id, message, isReceived, seen, time FROM (
+                SELECT D.user_id, D.message_id, messages.message,
+                CASE
+                    WHEN messages.sender = :senderId THEN 1
+                    WHEN messages.receiver = :senderId THEN 0
+                END AS isReceived,
+                messages.seen, messages.time FROM (
+                    SELECT user_id, MAX(message_id) AS message_id FROM (
+                        SELECT CASE
+                            WHEN B.sender = :senderId THEN B.receiver
+                            WHEN B.receiver = :senderId THEN B.sender
+                        END AS user_id, id AS message_id
+                        FROM (
+                            SELECT messages.id, A.sender, A.receiver, A.time FROM messages
+                            RIGHT JOIN(
+                                SELECT sender, receiver, MAX(time) AS time
+                                FROM messages
+                                WHERE receiver=:senderId OR sender=:senderId
+                                GROUP BY sender, receiver
+                            ) AS A
+                            ON messages.sender = A.sender AND messages.receiver = A.receiver AND messages.time = A.time
+                        ) B
+                    ) C
+                    GROUP BY user_id
+                ) D
+                INNER JOIN
+                messages
+                ON
+                messages.id = D.message_id AND (messages.sender = D.user_id || messages.receiver = D.user_id)
+                ORDER BY D.message_id DESC
             ) AS connectedUsers
-            RIGHT JOIN (SELECT id, fname, lname, gender, image, active, last_active FROM users WHERE id != :senderId) users
-            ON users.id = connectedUsers.id
-            ORDER BY connectedUsers.id DESC, users.last_active DESC
+            RIGHT JOIN 
+            (SELECT * FROM users WHERE users.id != :senderId) users
+            ON users.id = connectedUsers.user_id
+            ORDER BY connectedUsers.user_id DESC
         ');
 
         $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
@@ -254,7 +295,147 @@ class User{
         }
         else $this->_exit('Select Query error. [_syncChat B]');
     }
+    private function _syncChat_lastSeenMsgId($senderId, $receiverId){
+        $stmt = $this->pdo->prepare('
+            SELECT MAX(id) AS id
+            FROM messages
+            WHERE sender=:senderId AND receiver=:receiverId AND seen=1
+        ');
+        $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+        $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
+        
+        if( $stmt->execute() ){
+            $data =  $stmt->fetchAll(PDO::FETCH_ASSOC);
+            return $data[0]['id'] !== NULL ? $data[0]['id'] : 0;
+        }
+        else $this->_exit('Select Query error. [_syncChat C]');
+    }
+    public function loadChat(){
+        $senderId = $this->_isAuthorize();
+        $receiverId = $this->_validateInputWithId('receiverId');
+        $chatSet = $this->_validateInput('chatSet', true, 'recent');
+        $count = $this->_validateInputWithId('count', true, true, 50);
+        
+        $lastLoadedMsgId = -1;
 
+        if($count > 150) $this->_exit('[count] Maximum allowed value is 150.');
+        if(!in_array($chatSet, ['recent', 'before', 'after'])){
+            $this->_exit('Invalid [chatSet] value is passed');
+        }
+        else if($chatSet === 'before' || $chatSet === 'after'){
+            $lastLoadedMsgId = $this->_validateInputWithId('lastLoadedMsgId');
+        }
+
+        /*
+        $this->_exitS([
+            'senderId' => $senderId,
+            'receiverId' => $receiverId,
+            'chatSet' => $chatSet,
+            'count' => $count,
+            'padding' => $padding]);
+        */
+
+        /* Abbreviation
+            i => message_id;
+            m => message;
+            se => seen;
+            t => time;
+            s => sender;    // sender is self OR not
+        */
+        
+        $select = '
+            SELECT id i, message m, seen se, time t,
+            CASE
+                WHEN sender = :senderId THEN 1
+                ELSE 0
+            END AS s
+            FROM messages
+        ';
+
+        if($chatSet === 'recent'){
+            $stmt = $this->pdo->prepare("
+                {$select}
+                WHERE (sender=:senderId AND receiver=:receiverId) OR (receiver=:senderId AND sender=:receiverId)
+                ORDER BY id DESC LIMIT :limit
+            ");
+
+            $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+            $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
+            $stmt->bindParam('limit', $count, PDO::PARAM_INT);
+            if( $stmt->execute() ) $this->_exitS( $stmt->fetchAll(PDO::FETCH_ASSOC) );
+        }
+        else if($chatSet === 'before'){
+            $stmt = $this->pdo->prepare("
+                {$select}
+                WHERE id < :lastLoadedMsgId AND ( (sender=:senderId AND receiver=:receiverId) OR (receiver=:senderId AND sender=:receiverId) )
+                ORDER BY id DESC
+                LIMIT :limit
+            ");
+
+            $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+            $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
+            $stmt->bindParam('lastLoadedMsgId', $lastLoadedMsgId, PDO::PARAM_INT);
+            $stmt->bindParam('limit', $count, PDO::PARAM_INT);
+            if( $stmt->execute() ) $this->_exitS( $stmt->fetchAll(PDO::FETCH_ASSOC) );
+        }
+        else if($chatSet === 'after'){
+            $stmt = $this->pdo->prepare("
+                SELECT * FROM (
+                    {$select}
+                    WHERE id > :lastLoadedMsgId AND ( (sender=:senderId AND receiver=:receiverId) OR (receiver=:senderId AND sender=:receiverId) )
+                    ORDER BY id
+                    LIMIT :limit
+                ) A
+                ORDER BY i DESC
+            ");
+
+            $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+            $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
+            $stmt->bindParam('lastLoadedMsgId', $lastLoadedMsgId, PDO::PARAM_INT);
+            $stmt->bindParam('limit', $count, PDO::PARAM_INT);
+            if( $stmt->execute() ) $this->_exitS( $stmt->fetchAll(PDO::FETCH_ASSOC) );
+        }
+
+        $this->_exit('Select Query error. [loadChat]');
+    }
+    public function sendMessage(){
+        $senderId = $this->_isAuthorize();
+        $receiverId = $this->_validateInputWithId('receiverId');
+        $message = $this->_validateInput('message');
+
+        $time = intval(microtime(true) * 1000);
+        
+        $stmt = $this->pdo->prepare('
+        INSERT INTO messages
+        (sender, receiver, message, seen, time)
+        VALUES (:senderId, :receiverId, :message, 0, :time)');
+
+        $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);
+        $stmt->bindParam('receiverId', $receiverId, PDO::PARAM_INT);
+        $stmt->bindParam('message', $message, PDO::PARAM_STR);
+        $stmt->bindParam('time', $time, PDO::PARAM_INT);
+        
+        if( $stmt->execute() ){
+            $this->_exitS('Message sent.');
+            // $stmt = $this->pdo->prepare('
+            // SELECT id i, message m, seen se, time t,
+            // CASE
+            //     WHEN sender = ? THEN 1
+            //     ELSE 0
+            // END AS s
+            // FROM messages
+            // WHERE sender=? AND receiver=? AND time=? AND message=?
+            // ORDER BY time DESC LIMIT 1');
+
+            // if( $stmt->execute( [$sender, $sender, $receiver, $time, $message] ) ){
+            //     $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
+            // }
+            // else{
+            //     $this->_exit('Select Query error.');
+            // }
+        }
+        else $this->_exit('Insert Query error.');
+    }
 
 
 
@@ -365,53 +546,6 @@ class User{
         else{
             $this->_exit('Update Query error.');
         }
-    }
-
-    
-
-    public function sendMessage(){
-        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
-        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
-        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
-        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
-
-        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
-        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
-        
-        if(!isset($_POST["message"])) $this->_exit("Message is NOT sent");
-        else if(empty($_POST["message"])) $this->_exit("Message is NULL");
-
-        $sender = $_POST['userId'];
-        $receiver = $_POST['chat_userId'];
-        $message = $_POST["message"];
-        $time = time();
-        
-        $stmt = $this->pdo->prepare('
-        INSERT INTO messages
-        (sender, receiver, message, seen, time)
-        VALUES (?, ?, ?, ?, ?)');
-        
-        if( $stmt->execute( [$sender, $receiver, $message, 0, $time] ) ){
-
-            $stmt = $this->pdo->prepare('
-            SELECT id i, message m, seen se, time t,
-            CASE
-                WHEN sender = ? THEN 1
-                ELSE 0
-            END AS s
-            FROM messages
-            WHERE sender=? AND receiver=? AND time=? AND message=?
-            ORDER BY time DESC LIMIT 1');
-
-            if( $stmt->execute( [$sender, $sender, $receiver, $time, $message] ) ){
-                $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
-            }
-            else{
-                $this->_exit('Select Query error.');
-            }
-        }
-        else $this->_exit('Insert Query error.');
     }
 
     public function fixUnseenError(){

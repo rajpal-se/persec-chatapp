@@ -17,7 +17,7 @@
         </div>
       </div>
       <div class="image-con hide"><img class="image" src="./images/male.jpg"></div>
-      <div class="name-con hide"><p>Name</p></div>
+      <div class="name-con hide"><p class="name">Name</p><p class="last-seen"></p></div>
       <div class="setting-con">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-gear" viewBox="0 0 16 16">
           <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
@@ -39,37 +39,38 @@
         </div>
       </div>
       <div id="userlist-con">
-        <ul id="userlist" data-userid="<?php echo $_SESSION['senderId']; ?>">
+        <ul id="userlist" data-senderid="<?php echo $_SESSION['senderId']; ?>">
           <!--         
-            <li data-userid="0" data-userlastactive="1619928647">
+            <li data-receiverid="0" data-userlastactive="1619928647">
+              <div class="con1"><img class="image" src="./images/male.jpg"/></div>
+              <div class="con2">
+                <p class="name">Name</p>
+                <p class="message">Message</p>
+                <p class="last-seen"></p>
+              </div>
+            </li>
+            <li class="active" data-receiverid="0" data-userlastactive="0">
               <div class="con1"><img class="image" src="./images/male.jpg"/></div>
               <div class="con2">
                 <p class="name">Name</p>
                 <p class="message">Message</p>
               </div>
             </li>
-            <li class="active" data-userid="0" data-userlastactive="0">
+            <li data-receiverid="0" data-userlastactive="0">
               <div class="con1"><img class="image" src="./images/male.jpg"/></div>
               <div class="con2">
                 <p class="name">Name</p>
                 <p class="message">Message</p>
               </div>
             </li>
-            <li data-userid="0" data-userlastactive="0">
+            <li data-receiverid="0" data-userlastactive="1619923657">
               <div class="con1"><img class="image" src="./images/male.jpg"/></div>
               <div class="con2">
                 <p class="name">Name</p>
                 <p class="message">Message</p>
               </div>
             </li>
-            <li data-userid="0" data-userlastactive="1619923657">
-              <div class="con1"><img class="image" src="./images/male.jpg"/></div>
-              <div class="con2">
-                <p class="name">Name</p>
-                <p class="message">Message</p>
-              </div>
-            </li>
-            <li data-userid="0" data-userlastactive="1619924833">
+            <li data-receiverid="0" data-userlastactive="1619924833">
               <div class="con1"><img class="image" src="./images/male.jpg"/></div>
               <div class="con2">
                 <p class="name">Name</p>
@@ -80,7 +81,7 @@
         </ul>
       </div>
     </div>
-    <div id="chat-con" class="selectUser">
+    <div id="chat-con" class="selectUser">  <!-- Toggle 'selectUser' class to remove 'Blocker' -->
       <div class="chat-message-con">
         <ul id="print-chat">
           <!--           
@@ -94,7 +95,9 @@
         </ul>
       </div>
       <div class="chat-type-con">
-        <div class="con1"><textarea class="message-input"></textarea></div>
+        <div class="con1">
+          <textarea class="message-input" rows="1"></textarea>
+        </div>
         <div class="con2">
           <span class="send">
             <svg width="400" height="400" version="1.1" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">

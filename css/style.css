@@ -312,11 +312,16 @@ body.chatapp.texture{
 .user-search-con #cancel_search:active{
 	color: #2196f3;
 }
+#userlist-con{
+    height: calc(100% - 65px);
+}
 #userlist{
 	list-style-type: none;
 	padding: 0px;
 	margin: 0px;
 	user-select: none;
+    max-height: 100%;
+    overflow-y: auto;
 }
 #userlist li{
 	padding: 10px;
@@ -325,9 +330,11 @@ body.chatapp.texture{
 	border-bottom: 1px solid silver;
 	cursor: pointer;
 	/* background-color: tomato; */
+    flex-shrink: 0;
 }
 #userlist li>div:nth-child(2){
-	padding-left: 12px;
+    padding-left: 12px;
+    flex-grow: 1;
 }
 #userlist .image{
 	height: 60px;
@@ -358,10 +365,58 @@ body.chatapp.texture{
 	margin: 0px;
 	color: #737373;
 }
-#userlist .message{
-	color: gray;
+#userlist .name{
+    font-weight: 500;
 }
-
+#userlist .message{
+	color: #333333;
+    position: relative;
+    margin-right: 24px;
+    font-weight: 700;
+}
+#userlist .message.seen{
+	font-weight: unset;
+}
+#userlist .message.isReceived{ /* Message sent by me */
+	color: gray;
+    position: relative;
+    margin-right: 24px;
+    font-weight: unset;
+}
+#userlist .message.isReceived::after{
+    color: white;
+    content: '\2713\2713';
+    letter-spacing: -0.3em;
+    position: absolute;
+    right: -12px;
+    top: 0px;
+    text-shadow: 0 0 1px white, 0 0 4px black;
+    font-size: 1.1em;
+    transform: rotate(4deg);
+}
+#userlist .message.isReceived.seen::after{
+    color: #03a9f4;
+    text-shadow: 0 0 1px #03a9f4;
+}
+#userlist .con2{
+    position: relative;
+}
+#userlist p.last-seen{
+	margin: 0px;
+	padding: 0px;
+    position: absolute;
+    bottom: -2px;
+    font-size: 13px;
+    color: #818181;
+    font-style: italic;
+    font-weight: 300;
+    text-shadow: 0 0 0 #9b9b9b;
+    white-space: nowrap;
+}
+#userlist p.last-seen.online{
+	color: #75c100;
+    text-shadow: 0 0 0 green;
+}
 
 /*-----Status Con---------------------------------*/
 
@@ -397,6 +452,7 @@ body.chatapp.texture{
 	align-self: stretch;
 	display: flex;
 	cursor: pointer;
+    position: relative;
 }
 #status-con .name-con.hide{
 	display: none;
@@ -404,6 +460,22 @@ body.chatapp.texture{
 #status-con .name-con p{
 	margin: auto;
 	padding-right: 20px;
+}
+#status-con .name-con p.last-seen{
+	margin: unset;
+	padding: unset;
+    position: absolute;
+    bottom: 2px;
+    font-size: 13px;
+    color: #818181;
+    font-style: italic;
+    font-weight: 300;
+    text-shadow: 0 0 0 #9b9b9b;
+    white-space: nowrap;
+}
+#status-con .name-con p.last-seen.online{
+	color: #75c100;
+    text-shadow: 0 0 0 green;
 }
 #status-con .setting-con{
 	margin-left: auto;
@@ -441,6 +513,7 @@ body.chatapp.texture{
 	margin: 4px 4px 0px 0;
 	user-select: none;
 	transform: translateY(-120%);
+    background-color: white;
 }
 #status-con .setting-popup .list li{
 	background-color: #f3f3f3;
@@ -511,6 +584,7 @@ body.chatapp.texture{
 	flex-direction: column;
 }
 #print-chat li{
+    min-width: 62px;
 	margin: 0px 12px 8px;
 	/* padding: 0px; */
 	background-color: #fff3ce;
@@ -529,6 +603,7 @@ body.chatapp.texture{
 #print-chat li.me{
 	align-self: flex-end;
 	background-color: #e0ffe2;
+    min-width: 76px;
 }
 #print-chat li.after::after{
 	content: '';
@@ -550,10 +625,12 @@ body.chatapp.texture{
 #print-chat li span.time{
 	font-size: 11px;
 	color: #707070;
-	padding: 5px;
+	padding: 0px;
 	position: absolute;
-	bottom: -5px;
-	right: 0px;
+	bottom: -1px;
+	right: 8px;
+    /* background-color: red; */
+    white-space: nowrap;
 }
 #print-chat li.me span.time{
 	right: 25px;
@@ -643,18 +720,53 @@ body.chatapp.texture{
 }
 #chat-con .chat-type-con .con1 textarea{
 	position: absolute;
-	bottom: 0px;
 	outline: none;
-	border: 1px solid gray;
 	line-height: 20px;
 	font-size: 16px;
-	border-radius: 16px;
+    width: 100%;
+    bottom: 0px;
+    overflow-y: auto;
+    border-radius: 16px;
+    border: 1px solid gray;
+    padding: 5px 10px;
+    /* max-height: 92px; */
 	resize: none;
-	padding: 5px 10px;
-	height: 32px;
-	width: 100%;
-	max-height: 92px;
+	min-height: 32px;
 }
+/* #chat-con .chat-type-con .con1 .cover{
+    position: absolute;
+    height: 6px;
+    width: calc(100% - 30px);
+    background-color: white;
+    z-index: 1;
+    left: 12px;
+}
+#chat-con .chat-type-con .con1 .cover.top{
+    top: 0px;
+    border-radius: 2px 0 0 0;
+}
+#chat-con .chat-type-con .con1 .cover.bottom{
+    bottom: 1px;
+    border-radius: 0 0 0 2px;
+}
+#chat-con .chat-type-con .con1[data-rows="2"] textarea{
+    height: 50px;
+}
+#chat-con .chat-type-con .con1[data-rows="2"] .cover.top{
+    top: -18px;
+}
+#chat-con .chat-type-con .con1[data-rows="3"] textarea{
+    height: 70px;
+}
+#chat-con .chat-type-con .con1[data-rows="3"] .cover.top{
+    top: -38px;
+}
+#chat-con .chat-type-con .con1[data-rows="4"] textarea{
+    height: 90px;
+}
+#chat-con .chat-type-con .con1[data-rows="4"] .cover.top{
+    top: -58px;
+} */
 #chat-con .chat-type-con .con2 input{
 	height: 0px;
 	width: 0px;

@@ -27,6 +27,14 @@ if(isset($_POST["apiAction"]) && !empty($_POST["apiAction"])){
             $user->syncChat();
             break;
         }
+        case "loadChat": {
+            $user->loadChat();
+            break;
+        }
+        case "sendMessage": {
+            $user->sendMessage();
+            break;
+        }
 
 
 
@@ -36,7 +44,8 @@ if(isset($_POST["apiAction"]) && !empty($_POST["apiAction"])){
 
 
 
-
+        
+        
         
         case "syncState":
             $user->syncState();
@@ -52,9 +61,7 @@ if(isset($_POST["apiAction"]) && !empty($_POST["apiAction"])){
 
         
 
-        case "sendMessage":
-            $user->sendMessage();
-            break;
+        
 
         case "fixUnseenError":
             $user->fixUnseenError();
