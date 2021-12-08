@@ -35,46 +35,10 @@ if(isset($_POST["apiAction"]) && !empty($_POST["apiAction"])){
             $user->sendMessage();
             break;
         }
-
-
-
-
-
-
-
-
-
         
-        
-        
-        case "syncState":
-            $user->syncState();
-            break;
-        
-        case "showChat":
-            $user->showChat();
-            break;
-
-        case "messagesSeen":
-            $user->messagesSeen();
-            break;
-
-        
-
-        
-
-        case "fixUnseenError":
-            $user->fixUnseenError();
-            break;
-
-        case "syncUnseenMessage":
-            $user->syncUnseenMessage();
-            break;
-
-       
-        
-        default:
+        default: {
             exit( json_encode(array('response' => 0, 'data' => '', 'message' => 'Invalid \'apiAction\' is passed.')) );
+        }
     }
 }
 else{

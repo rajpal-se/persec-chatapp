@@ -662,7 +662,7 @@ class App{
             obj.beep = (messageID) => {
                 if(typeof messageID === typeof 0 && messageID !== NaN && obj.beepedForMsgIds.indexOf(messageID) < 0){
                     obj.beepedForMsgIds.push(messageID)
-                    console.log('messageID: ' + messageID)
+                    // console.log('messageID: ' + messageID)
                     audio.play()
                     .then(_ => {})
                     .catch(e => {

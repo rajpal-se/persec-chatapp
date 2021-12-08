@@ -151,8 +151,8 @@ class User{
         
         $passEncrypted = $this->_encPass($pass);
         
-        $last_active = time();
-        $active = true;
+        $last_active = intval(microtime(true) * 1000);
+        $active = 1;
 
         $stmt = $this->pdo->prepare("INSERT INTO users (fname, lname, email, pass, gender, image, active, last_active) VALUES (:fname, :lname, :email, :pass, :gender, :image, :active, :last_active)");
         $stmt->bindParam('fname', $fname, PDO::PARAM_STR_CHAR);
@@ -161,7 +161,7 @@ class User{
         $stmt->bindParam('pass', $passEncrypted, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('gender', $gender, PDO::PARAM_STR_CHAR);
         $stmt->bindParam('image', $image, PDO::PARAM_STR_CHAR);
-        $stmt->bindParam('active', $active, PDO::PARAM_BOOL);
+        $stmt->bindParam('active', $active, PDO::PARAM_INT);
         $stmt->bindParam('last_active', $last_active, PDO::PARAM_INT);
         $result = $stmt->execute();
         
@@ -241,14 +241,15 @@ class User{
         else $this->_exit('Select Query error. [_syncChat A]');
     }
     private function _syncChat_updateActiveOthers(){
-        $last_active = (microtime(true) * 1000) - $this->lastActiveGap;
+        $last_active = intval(microtime(true) * 1000) - $this->lastActiveGap;
         $stmt = $this->pdo->prepare('UPDATE users SET active=? WHERE last_active<?');
-        $result = $stmt->execute([false, $last_active]);
+        $result = $stmt->execute([0, $last_active]);
+        // var_dump($result);
     }
     private function _syncChat_updateActiveSelf($senderId){
         $stmt = $this->pdo->prepare('UPDATE users SET active=?, last_active=? WHERE id=?');
         $t = intval(microtime(true) * 1000);
-        $stmt->execute([true, $t, $senderId]);
+        $stmt->execute([1, $t, $senderId]);
     }
     private function _syncChat_getUsersList($senderId){
         $stmt = $this->pdo->prepare('
@@ -435,218 +436,7 @@ class User{
             // }
         }
         else $this->_exit('Insert Query error.');
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-
-    
-
-    public function syncState(){
-        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
-        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
-        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
-        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
-
-        $userid = $_POST['userId'];
-
-        $stmt = $this->pdo->prepare('UPDATE users SET active=?, last_active=? WHERE id=?');
-        $t = time();
-        $result = $stmt->execute([true, $t, $_POST['userId']]);
-
-        $t = $t - 2;
-
-        $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active, last_active FROM users WHERE id != ?');
-        if( $stmt->execute( [$userid] ) ){
-            $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
-        }
-        else $this->_exit('Select Query error.');
-
-        // print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
-        // if($result) $this->_exit('Account sccuessfully created.', 1);
-        // else $this->_exit('Insertion error.');
-    }
-
-    public function showChat(){
-        if(!isset($_POST['senderId'])) $this->_exit("Sender ID is NOT sent");
-        else if(empty($_POST['userId'])) $this->_exit("Sender ID is NULL");
-        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
-        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
-
-        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
-        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
-
-        $user = $_POST['userId'];
-        $chatWith = $_POST['chat_userId'];
-
-        $stmt = $this->pdo->prepare('
-        SELECT id i, message m, seen se, time t,
-        CASE
-            WHEN sender = ? THEN 1
-            ELSE 0
-        END AS s
-        FROM messages
-        WHERE (sender=? AND receiver=?) OR (receiver=? AND sender=?)
-        ORDER BY time DESC LIMIT 100');
-        // $result = $stmt->execute();
-        
-        // $stmt = $this->pdo->prepare('SELECT id, fname, lname, image, active FROM users WHERE active=1');
-
-        if( $stmt->execute( [$user, $user, $chatWith, $user, $chatWith] ) ){
-            $this->_exit( $stmt->fetchAll(PDO::FETCH_ASSOC) , 2);
-        }
-        else $this->_exit('Select Query error.');
-    }
-
-    public function messagesSeen(){
-        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
-        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
-        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
-        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
-
-
-        if(!isset($_POST["msg_ids"])) $this->_exit("Message IDs are NOT sent");
-        else if(empty($_POST["msg_ids"])) $this->_exit("msg_ids is NULL");
-        // else if($_POST["msg_ids"] == 0) $this->_exit("User ID is 0. Not Allowed");
-        $ids = json_decode($_POST["msg_ids"]);
-        
-        $stmt = $this->pdo->prepare('
-        UPDATE messages
-        SET seen=?
-        WHERE id=?
-        ');
-
-        $updated = 0;
-        foreach($ids as $v){
-            $updated += $stmt->execute([1, intval($v)]);
-        }
-        
-        if($updated){
-            $this->_exit('Message seen status updated.', 1);
-        }
-        else{
-            $this->_exit('Update Query error.');
-        }
-    }
-
-    public function fixUnseenError(){
-        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
-        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
-        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
-        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
-
-        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
-        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
-
-        $sender = intval($_POST['userId']);
-        $receiver = intval($_POST['chat_userId']);
-
-        $ret_ids = array();
-
-        $stmt = $this->pdo->prepare('
-            SELECT id
-            FROM messages
-            WHERE sender=? AND receiver=? AND seen=?
-            ORDER BY time
-        ');
-        
-        $stmt->execute( [$sender, $receiver, 0] );
-        if( $stmt->rowCount() ){
-            $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-                
-            // print_r($ids);
-            // _exit();
-            $stmt = $this->pdo->prepare('
-                SELECT id
-                FROM messages
-                WHERE sender=? AND receiver=? AND seen=?
-                ORDER BY time DESC LIMIT 1;
-            ');
-            $stmt->execute( [$sender, $receiver, 1] );
-            if( $stmt->rowCount() ){
-                $latest_id = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                $latest_id = $latest_id[0];
-                // print_r($ids);
-                // print_r($latest_id);
-
-                $stmt = $this->pdo->prepare('
-                    UPDATE messages
-                    SET seen=?
-                    WHERE id=?
-                ');
-                foreach($ids as $id){
-                    if($id < $latest_id){
-                        if( $stmt->execute( [1, $id] ) ){
-                            $ret_ids[] = $id;
-                        }
-                    }
-                }
-                $this->_exit( $ret_ids , 2);
-            }
-            $this->_exit( $ret_ids , 2);
-        }
-        $this->_exit( $ret_ids , 2);
-    }
-
-    public function syncUnseenMessage(){
-        if(!isset($_POST['userId'])) $this->_exit("User ID is NOT sent");
-        else if(empty($_POST['userId'])) $this->_exit("User ID is NULL");
-        else if($_POST['userId'] == 0) $this->_exit("User ID is 0. Not Allowed");
-        else if($_SESSION['userId'] != intval($_POST['userId']) ) $this->_exit("You are unauthorised user.");
-
-        if(!isset($_POST['chat_userId'])) $this->_exit("Chat User ID is NOT sent");
-        else if(empty($_POST['chat_userId'])) $this->_exit("Chat User ID is NULL");
-        else if($_POST['chat_userId'] == 0) $this->_exit("Chat User ID is 0. Not Allowed");
-
-        if(!isset($_POST["msg_ids"])) $this->_exit("Message IDs is NOT sent");
-        else if(empty($_POST["msg_ids"])) $this->_exit("Message IDs is NULL");
-        $msg_ids = json_decode( $_POST['msg_ids'] );
-        if( !is_array($msg_ids) ) $this->_exit("Message ids must be an Array.");
-
-        $sender = intval($_POST['userId']);
-        $receiver = intval($_POST['chat_userId']);
-
-        $ret_ids = array();
-
-        $stmt = $this->pdo->prepare('
-            SELECT id
-            FROM messages
-            WHERE sender=? AND receiver=? AND seen=? AND id=?
-        ');
-        // print_r($msg_ids);
-        foreach($msg_ids as $msg_id){
-            $stmt->execute( [$sender, $receiver, 1, $msg_id] );
-            
-            if($stmt->rowCount()){
-                $ret_ids[] = $msg_id;
-            }
-        }
-
-        $this->_exit( $ret_ids , 2);
-    }
-
-    
+    }    
 }
 
 
