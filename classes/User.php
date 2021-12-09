@@ -287,7 +287,7 @@ class User{
             RIGHT JOIN 
             (SELECT * FROM users WHERE users.id != :senderId) users
             ON users.id = connectedUsers.user_id
-            ORDER BY connectedUsers.user_id DESC
+            ORDER BY connectedUsers.message_id DESC
         ');
 
         $stmt->bindParam('senderId', $senderId, PDO::PARAM_INT);

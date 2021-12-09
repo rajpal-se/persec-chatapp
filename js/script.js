@@ -201,7 +201,7 @@ class App{
 			}
             obj.sendMessageHandler = () => {
                 const textarea = this.re.messageInput
-                const message = textarea.value
+                const message = textarea.value.trim()
                 textarea.rows = 1
                 if(message.length > 0 && this.receiverId !== 0){
                     textarea.value = ''
