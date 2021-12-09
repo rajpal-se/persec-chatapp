@@ -20,6 +20,11 @@ class App{
 
     markMsgAsSeen = []
 
+    dateTextArr = []   // 'today', 'yesterday', 'Any Date' etc.
+    dateTextArrInfo = {}   //  {'indexOfDateTextArr': {data: 'today', dom: {refObj}}}
+
+    unreadNode = {exists: false, data: 0, dom: null}
+
 	months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 	constructor(){
 		// this.init()
@@ -146,21 +151,31 @@ class App{
                         if(typeof chats === typeof [] && chats.length > 0){
                             this.lastLoadedMsgId = parseInt(chats[0].i)
                             // console.log(chats)
-                            const dummyNodes = this.re.printchat.querySelectorAll('.dummy')
+                            const printchat = this.re.printchat
+                            const dummyNodes = printchat.querySelectorAll('.dummy')
                             
                             Array.apply(null, Array(dummyNodes.length)).forEach( (v, i) => {
-                                this.re.printchat.removeChild( dummyNodes[i] )
+                                printchat.removeChild( dummyNodes[i] )
                             })
 
-                            chats.reverse().map(chat => {
-                                const node = this.fun.dom.createChatNode(chat)
-                                this.re.printchat.append(node.root)
-                                this.markMsgAsSeen.push( parseInt(chat.i) )
-                                // console.log(chat.i)
-                                // console.log(this.markMsgAsSeen)
-                            })
+                            try{
+                                const seconds = this.fun.dom.createChatNode_setData_getDateNode_seconds()
+                                chats.reverse().map(chat => {
+                                    const x = this.fun.dom.createChatNode_setData_getDateNode( chat.t, seconds )
+                                    if(x.res) printchat.append(x.dom.root)
 
-                            const con = this.re.printchat.parentElement
+                                    const node = this.fun.dom.createChatNode(chat)
+                                    printchat.append(node.root)
+                                    this.markMsgAsSeen.push( parseInt(chat.i) )
+                                    // console.log(chat.i)
+                                    // console.log(this.markMsgAsSeen)
+                                })
+                            }
+                            catch(e){
+                                console.log(e)
+                            }
+
+                            const con = printchat.parentElement
                             con.scroll(0, con.scrollHeight)
                         }
 
@@ -178,7 +193,7 @@ class App{
 
                     this.syncChat.isSyncing = false
                 }, message => {
-                    console.log(message)
+                    // console.log(message)
                     this.syncChat.isSyncing = false
                 }, e => {
                     this.syncChat.isSyncing = false
@@ -231,9 +246,13 @@ class App{
 		})(),
 		dom: (() => {
             const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-			const obj = {}
+            const obj = {}
 			obj.displayChat = (chats) => {
                 // console.log(chats)
+
+                this.dateTextArr = []
+                this.dateTextArrInfo = {}
+
 				const c = {}
                 const cOrder = []
                 chats.forEach(chat => {
@@ -249,11 +268,37 @@ class App{
 
                 this.re.chatCon.classList.remove('selectUser')
 
-                this.re.printchat.innerHTML = null
+                const printchat = this.re.printchat
+                printchat.innerHTML = null
+
+                let totalUnreadMessages = 0
+                let unreadMessageNodePosition = 0
+                const seconds = obj.createChatNode_setData_getDateNode_seconds()
                 cOrder.reverse().map(id => {
-                    this.re.printchat.append( c[id].dom.root )
+                    const x = obj.createChatNode_setData_getDateNode( c[id].data.t, seconds )
+                    if(x.res) printchat.append(x.dom.root)
+                    
+                    if(parseInt(c[id].data.se) === 0 && parseInt(c[id].data.s) === 0 ){
+                        if(totalUnreadMessages === 0) unreadMessageNodePosition = printchat.children.length
+                        totalUnreadMessages++
+                    }
+
+                    printchat.append( c[id].dom.root )
                     this.markMsgAsSeen.push( id )
                 })
+                if(totalUnreadMessages){
+                    const node = obj.createChatNode_setData_getUnreadNode( totalUnreadMessages )
+                    if(unreadMessageNodePosition){
+                        console.log(printchat.children)
+                        console.log(printchat.children[unreadMessageNodePosition - 1])
+                        console.log( unreadMessageNodePosition )
+                        printchat.children[unreadMessageNodePosition - 1].after( node.dom.root )
+                    }
+                    else{
+                        printchat.prepend( node.dom.root )
+                    }
+                }
+
                 const a = this.re.chatCon.querySelector('.chat-message-con')
                 a.scroll(0, a.scrollHeight)
 			}
@@ -327,11 +372,66 @@ class App{
                 let y = x[1].split(':')
                 y.pop()
                 return `${y.join(':')} ${x[2]}`
-                // new_text += months[ d.getMonth() ];
-                // new_text += ' ';
-                // new_text += date.getDate();
-                // new_text += ', ';
-                // new_text += date.getFullYear();
+            }
+            obj.createChatNode_setData_getUnreadNode = (numberOfUnreadMessages = 0) => {
+                const root = document.createElement('li')
+                root.className = 'unread'
+                const dateText = document.createElement('p')
+                dateText.className = 'unread-text'
+                root.append(dateText)
+                dateText.innerText = `(${numberOfUnreadMessages}) unread message${numberOfUnreadMessages > 1 ? 's' : ''}`
+                
+                this.unreadNode.exists = true
+                this.unreadNode.data = numberOfUnreadMessages
+                this.unreadNode.dom = {
+                    root,
+                    dateText
+                }
+                return this.unreadNode
+            }
+            obj.createChatNode_setData_getDateNode = (time, seconds) => {
+                const chatDate = new Date()
+                chatDate.setTime( parseInt(time) )
+                const chatTime = chatDate.getTime()
+                let text = ''
+                if(chatTime > seconds.today) text = 'Today'
+                else if(chatTime > seconds.yesterday) text = 'Yesterday'
+                else text = `${months[chatDate.getMonth() - 1]} ${chatDate.getDate()}, ${chatDate.getFullYear()}`
+                
+                if(text !== '' && this.dateTextArr.indexOf(text) < 0){
+                    const length = this.dateTextArr.push(text)
+
+                    const root = document.createElement('li')
+                    root.className = 'date'
+                    const dateText = document.createElement('span')
+                    dateText.className = 'date-text'
+                    root.append(dateText)
+                    dateText.innerText = text
+
+                    const dom = {root, dateText}
+
+                    this.dateTextArrInfo[length - 1] = {
+                        data: text,
+                        dom
+                    }
+                    return {
+                        res: true,
+                        data: text,
+                        dom
+                    }
+                }
+                return {res: false}
+            }
+            obj.createChatNode_setData_getDateNode_seconds = () => {
+                const today = new Date()
+                today.setHours(0)
+                today.setMinutes(0)
+                today.setSeconds(0)
+                const todaySeconds = today.getTime()
+                return {
+                    today: todaySeconds,
+                    yesterday: todaySeconds - (24 * 60 * 60 * 1000)
+                }
             }
             obj.displaySelectedUser = (selectedUserId) => {
                 if(selectedUserId !== 0){
