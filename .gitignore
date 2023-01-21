@@ -2,3 +2,11 @@ images/uploads/
 
 
 local*
+.env*
+
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+
+dump*
+GUIDE.md
