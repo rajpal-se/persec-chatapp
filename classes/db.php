@@ -13,19 +13,26 @@ class DB
 
 	function __construct()
 	{
+        if( !empty(isset($_ENV["MYSQL_HOST_NAME"])) ){
+            $this->host = $_ENV["MYSQL_HOST_NAME"];
+        }
+        else{
+            throw new Exception("Pass mysql host ENV variables. (MYSQL_HOST_NAME is required.)");
+        }
+        if( !empty(isset($_ENV["MYSQL_HOST_PORT"])) ){
+			$this->port = $_ENV["MYSQL_HOST_PORT"];
+        }
 		if (
-			!empty(isset($_ENV["MYSQL_HOST_SERVICE_NAME"])) &&
 			!empty(isset($_ENV["MYSQL_DATABASE"])) &&
 			!empty(isset($_ENV["MYSQL_USER"])) &&
 			!empty(isset($_ENV["MYSQL_PASSWORD"]))
 		) {
-			$this->host = $_ENV["MYSQL_HOST_SERVICE_NAME"];
 			$this->db = $_ENV["MYSQL_DATABASE"];
 			$this->user = $_ENV["MYSQL_USER"];
 			$this->pass = $_ENV["MYSQL_PASSWORD"];
 		}
 		else{
-			throw new Exception("Pass ENV variables. (MYSQL_HOST_SERVICE_NAME, MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD)");
+			throw new Exception("Pass ENV variables. (MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD)");
 		}
 
 		$this->dns = $this->server . ":host=" . $this->host . ";dbname=" . $this->db . ";port=" . $this->port . ";charset=" . $this->charset;

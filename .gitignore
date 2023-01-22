@@ -4,9 +4,11 @@ images/uploads/
 local*
 .env*
 
+docker-compose.prod*
 .dockerignore
 Dockerfile*
 docker-compose*.yml
 
 dump*
 GUIDE.md
+DOCKERSETUP.md
