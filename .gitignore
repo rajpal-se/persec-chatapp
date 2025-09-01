@@ -9,6 +9,10 @@ docker-compose.prod*
 Dockerfile*
 docker-compose*.yml
 
-dump*
+# dump*
 GUIDE.md
 DOCKERSETUP.md
+
+.env.gh
+.secrets
+.variables
