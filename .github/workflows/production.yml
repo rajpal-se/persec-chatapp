@@ -55,6 +55,7 @@ jobs:
           app-container-name: ${{ secrets.APP_CONTAINER_NAME }}
           #   app-port-mapping: ${{ secrets.APP_PORT_MAPPING }}
           app-container-ip: ${{ secrets.APP_CONTAINER_IP }}
+          app-env-file: ${{ secrets.APP_ENV_FILE }}
 
       - name: Remove Dangling Docker Images
         uses: rajpal-se/cleanup-docker@v1
