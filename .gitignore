@@ -12,6 +12,7 @@ docker-compose*.yml
 # dump*
 GUIDE.md
 DOCKERSETUP.md
+chatapp-users.md
 
 .env.gh
 .secrets
