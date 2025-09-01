@@ -37,7 +37,7 @@ jobs:
       - name: Download files
         run: |
           ssh -F .tmp/.ssh/config github-actions "echo 'Downloading files...'"
-          copy_files="/server/projects/rajpal/task-cutive/files/{.env.production,Dockerfile.prod,.dockerignore}"
+          copy_files="/server/projects/rajpal/persec-chat/files/{.env.production,Dockerfile.prod,.dockerignore}"
           scp -F .tmp/.ssh/config -o StrictHostKeyChecking=no github-actions:$copy_files .
 
       - name: Build Docker image
