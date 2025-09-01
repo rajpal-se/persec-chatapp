@@ -29,7 +29,8 @@ class DB
 		) {
 			$this->db = $_ENV["MYSQL_DATABASE"];
 			$this->user = $_ENV["MYSQL_USER"];
-			$this->pass = $_ENV["MYSQL_PASSWORD"];
+			$this->pass = trim($_ENV["MYSQL_PASSWORD"], '"');
+			$this->pass = trim($this->pass, "'");
 		}
 		else{
 			throw new Exception("Pass ENV variables. (MYSQL_DATABASE, MYSQL_USER, MYSQL_PASSWORD)");
