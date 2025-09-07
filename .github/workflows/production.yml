@@ -47,7 +47,7 @@ jobs:
         run: docker push ${{ secrets.AWS_ECR_REPOSITORY_URL_PROD }}:latest
 
       - name: Deploy Docker Container
-        uses: rajpal-se/deploy-docker-container@v3
+        uses: rajpal-se/deploy-docker-container@v5
         with:
           aws-account-number: ${{ secrets.AWS_ACCOUNT_NUMBER }}
           aws-ecr-region: ${{ secrets.AWS_DEFAULT_REGION }}
@@ -56,6 +56,7 @@ jobs:
           #   app-port-mapping: ${{ secrets.APP_PORT_MAPPING }}
           app-container-ip: ${{ secrets.APP_CONTAINER_IP }}
           app-env-file: ${{ secrets.APP_ENV_FILE }}
+          app-docker-run-options: ${{ secrets.DOCKER_RUN_OPTIONS }}
 
       - name: Remove Dangling Docker Images
         uses: rajpal-se/cleanup-docker@v1
